@@ -535,6 +535,7 @@ function parsePokemonFromElement(element) {
 
 let overlay = null;
 let lastState = null;
+let overlayVisible = true;
 
 function init() {
   log('Iniciando Pokemon Showdown Assistant...');
@@ -561,6 +562,42 @@ function init() {
   }, 1000); // Escanear cada segundo
   
   log('Extension iniciada correctamente');
+}
+
+// Escuchar mensajes del background/popup
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    log('Mensaje recibido:', message.type);
+    
+    if (message.type === 'TOGGLE_OVERLAY') {
+      toggleOverlay();
+      sendResponse({ success: true });
+    } else if (message.type === 'GET_OVERLAY_STATE') {
+      sendResponse({ visible: overlayVisible });
+    } else if (message.type === 'STATE_UPDATED') {
+      // Refrescar datos si es necesario
+      log('Estado actualizado');
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ success: false });
+    }
+    
+    return true;
+  });
+}
+
+function toggleOverlay() {
+  const overlayEl = document.getElementById('psd-overlay');
+  if (overlayEl) {
+    if (overlayVisible) {
+      overlayEl.style.display = 'none';
+      overlayVisible = false;
+    } else {
+      overlayEl.style.display = 'block';
+      overlayVisible = true;
+    }
+    log('Overlay toggled:', overlayVisible);
+  }
 }
 
 // Iniciar cuando el DOM esté listo
