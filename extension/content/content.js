@@ -6,6 +6,7 @@
 class ShowdownParser {
   constructor() {
     this.battleLog = [];
+    this.battleHistory = [];
     this.init();
   }
 
@@ -23,7 +24,10 @@ class ShowdownParser {
     if (state) {
       chrome.runtime.sendMessage({
         type: 'BATTLE_STATE_UPDATE',
-        data: state
+        data: {
+          ...state,
+          recentActions: this.battleHistory.slice(-5)
+        }
       });
     }
   }
@@ -39,6 +43,16 @@ class ShowdownParser {
       return null;
     }
 
+    // Agregar al historial si cambió el Pokemon activo
+    if (myActive && this.lastMyPokemon !== myActive.name) {
+      this.addHistoryEvent('switch', `${myActive.name} entró`);
+      this.lastMyPokemon = myActive.name;
+    }
+    if (enemyActive && this.lastEnemyPokemon !== enemyActive.name) {
+      this.addHistoryEvent('switch', `Enemigo envió a ${enemyActive.name}`);
+      this.lastEnemyPokemon = enemyActive.name;
+    }
+
     return {
       timestamp: Date.now(),
       myPokemon: myActive,
@@ -49,6 +63,20 @@ class ShowdownParser {
       availableSwitches: this.getAvailableSwitches(),
       hazards: this.extractHazards()
     };
+  }
+
+  addHistoryEvent(type, description, data = {}) {
+    this.battleHistory.push({
+      type,
+      description,
+      timestamp: Date.now(),
+      ...data
+    });
+    
+    // Mantener solo últimos 50 eventos
+    if (this.battleHistory.length > 50) {
+      this.battleHistory.shift();
+    }
   }
 
   /**
