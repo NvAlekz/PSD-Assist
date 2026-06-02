@@ -536,54 +536,52 @@ function parsePokemonFromElement(element) {
 let overlay = null;
 let lastState = null;
 let overlayVisible = true;
+let isInitialized = false;
 
 function init() {
+  if (isInitialized) return;
+  isInitialized = true;
+  
   log('Iniciando Pokemon Showdown Assistant...');
   
-  // Crear overlay
-  overlay = createOverlay();
+  // Crear overlay inmediatamente
+  createOverlay();
   
-  // Escanear periódicamente
-  const scanInterval = setInterval(() => {
-    const state = scanBattle();
-    
-    if (state.hasBattle && (state.myPokemon || state.enemyPokemon)) {
-      updateOverlay(state);
+  // Configurar mensaje listener
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      log('Mensaje recibido:', message && message.type ? message.type : 'unknown');
       
-      // Notificar si hubo cambios significativos
-      if (CONFIG.showNotifications && lastState) {
-        if (state.myPokemon?.hpPercent !== lastState.myPokemon?.hpPercent) {
-          log('HP cambió:', state.myPokemon?.hpPercent);
-        }
+      if (!message || !message.type) {
+        sendResponse({ success: false });
+        return true;
       }
       
+      if (message.type === 'TOGGLE_OVERLAY') {
+        toggleOverlay();
+        sendResponse({ success: true, visible: overlayVisible });
+      } else if (message.type === 'GET_OVERLAY_STATE') {
+        sendResponse({ visible: overlayVisible });
+      } else {
+        sendResponse({ success: false });
+      }
+      return true;
+    });
+    log('Message listener configurado');
+  } else {
+    log('Chrome runtime no disponible');
+  }
+  
+  // Escanear periódicamente
+  setInterval(() => {
+    const state = scanBattle();
+    if (state.hasBattle) {
+      updateOverlay(state);
       lastState = state;
     }
-  }, 1000); // Escanear cada segundo
+  }, 1000);
   
   log('Extension iniciada correctamente');
-}
-
-// Escuchar mensajes del background/popup
-if (typeof chrome !== 'undefined' && chrome.runtime) {
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    log('Mensaje recibido:', message.type);
-    
-    if (message.type === 'TOGGLE_OVERLAY') {
-      toggleOverlay();
-      sendResponse({ success: true });
-    } else if (message.type === 'GET_OVERLAY_STATE') {
-      sendResponse({ visible: overlayVisible });
-    } else if (message.type === 'STATE_UPDATED') {
-      // Refrescar datos si es necesario
-      log('Estado actualizado');
-      sendResponse({ success: true });
-    } else {
-      sendResponse({ success: false });
-    }
-    
-    return true;
-  });
 }
 
 function toggleOverlay() {
@@ -600,9 +598,5 @@ function toggleOverlay() {
   }
 }
 
-// Iniciar cuando el DOM esté listo
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+// INICIAR INMEDIATAMENTE
+init();
