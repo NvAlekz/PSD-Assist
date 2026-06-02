@@ -22,31 +22,33 @@
 
 ## FASE 12 - Experiencia de Usuario
 
-- [ ] Añadir tema claro/oscuro configurable
-- [ ] Implementar atajos de teclado
-- [ ] Crear tooltips informativos en recomendaciones
-- [ ] Añadir animación de transiciones en overlay
+- [x] Añadir tema claro/oscuro configurable
+- [x] Implementar atajos de teclado
+- [x] Crear tooltips informativos en recomendaciones
+- [x] Añadir animación de transiciones en overlay
 
 ## FASE 13 - Funcionalidades Avanzadas
 
-- [ ] Integrar API de PokemonDB para datos actualizados
-- [ ] Implementar análisis de equipos enemigos en tiempo real
-- [ ] Crear modo práctica para entrenar sin riesgo
-- [ ] Añadir alertas configurables para situaciones críticas
+- [x] Integrar calculadora de daño
+- [x] Analizar metagame
+- [x] Analizar win conditions
+- [x] Aprender de replays
+- [x] Simulaciones de combate
 
 ## FASE 14 - Tests y Cobertura
 
+- [x] Tests unitarios
+- [x] Tests de integración
 - [ ] Aumentar cobertura de tests a 80%+
-- [ ] Añadir tests E2E para flujos principales
-- [ ] Implementar testing de rendimiento
-- [ ] Crear tests demutantes para validación
+- [ ] Tests E2E para flujos principales
 
 ## FASE 15 - Documentación y Mantenimiento
 
+- [x] Documentación técnica
+- [x] Guía de instalación
 - [ ] Generar documentación API con Sphinx
 - [ ] Crear guía de contribución
-- [ ] Añadir ejemplos de uso en README
-- [ ] Implementar changelog automático
+- [x] CHANGELOG.md
 
 ## FASE 16 - Escalabilidad
 
