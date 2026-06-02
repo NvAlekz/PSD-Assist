@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>PSD Assistant</title>
+  <style>
+    body {
+      width: 280px;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #1a1a2e;
+      color: #fff;
+    }
+    
+    h1 {
+      font-size: 18px;
+      margin: 0 0 16px 0;
+      color: #3498db;
+    }
+    
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    
+    .status.active {
+      background: rgba(46, 204, 113, 0.2);
+      border: 1px solid #2ecc71;
+      color: #2ecc71;
+    }
+    
+    .status.inactive {
+      background: rgba(149, 165, 166, 0.2);
+      border: 1px solid #95a5a6;
+      color: #95a5a6;
+    }
+    
+    .battle-count {
+      font-size: 14px;
+      margin-top: 12px;
+    }
+    
+    button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+    
+    .btn-primary {
+      background: #3498db;
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      background: #2980b9;
+    }
+    
+    .btn-danger {
+      background: #e74c3c;
+      color: #fff;
+    }
+    
+    .btn-danger:hover {
+      background: #c0392b;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 PSD Assistant</h1>
+  
+  <div id="status" class="status inactive">
+    Sin batalla activa
+  </div>
+  
+  <div id="battle-count" class="battle-count">
+    Batallas: 0
+  </div>
+  
+  <button id="toggleOverlay" class="btn-primary">
+    Mostrar Overlay
+  </button>
+  
+  <button id="clearData" class="btn-danger">
+    Limpiar Datos
+  </button>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

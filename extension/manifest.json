@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Pokemon Showdown Assistant",
+  "version": "1.0.0",
+  "description": "Asistente inteligente para Pokemon Showdown",
+  "permissions": ["activeTab", "storage"],
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://play.pokemonshowdown.com/*", "*://pokemonshowdown.com/*"],
+      "js": ["content/content.js"],
+      "css": ["content/styles.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content/content.js"],
+      "matches": ["*://play.pokemonshowdown.com/*"]
+    }
+  ]
+}
