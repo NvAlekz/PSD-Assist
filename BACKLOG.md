@@ -1,62 +1,56 @@
 # Pokemon Showdown Assistant Backlog
 
-## FASE 1 - Arquitectura
+## FASE 9 - Mejoras de Calidad
 
-- [x] Crear estructura del proyecto
-- [x] Configurar entorno
-- [x] Configurar sistema de logs
-- [x] Configurar tests
+- [x] Implementar logging estructurado con niveles configurables
+- [x] Crear middleware para manejo de errores centralizado
+- [x] Añadir validación de tipos con type hints completos
+- [x] Añadir cache para datos frecuentemente accedidos
 
-## FASE 2 - Captura de Datos
+## FASE 10 - Rendimiento
 
-- [x] Crear extensión de navegador
-- [x] Detectar inicio de batalla
-- [x] Detectar Pokemon activo aliado
-- [x] Detectar Pokemon activo enemigo
-- [x] Detectar HP aliado
-- [x] Detectar HP enemigo
-- [x] Detectar estados alterados
-- [x] Detectar movimientos disponibles
-- [x] Detectar cambios disponibles
+- [ ] Optimizar parser de DOM con selectores más eficientes
+- [ ] Implementar throttling para actualizaciones de estado
+- [ ] Reducir uso de memoria en BattleState
 
-## FASE 3 - Modelo Interno
+## FASE 11 - Seguridad y Robustez
 
-- [x] Crear clase BattleState
-- [x] Crear clase Pokemon
-- [x] Crear clase Team
-- [x] Crear historial de turnos
+- [ ] Sanitizar inputs del usuario en la extensión
+- [ ] Implementar rate limiting para APIs
+- [ ] Añadir validación de datos de terceros
+- [ ] Crear fallbacks para APIs externas
 
-## FASE 4 - Motor de Decisión
+## FASE 12 - Experiencia de Usuario
 
-- [x] Sistema heurístico inicial
-- [x] Evaluación de movimientos
-- [x] Evaluación de cambios
-- [x] Ranking de opciones
-- [x] Top 3 recomendaciones
+- [ ] Añadir tema claro/oscuro configurable
+- [ ] Implementar atajos de teclado
+- [ ] Crear tooltips informativos en recomendaciones
+- [ ] Añadir animación de transiciones en overlay
 
-## FASE 5 - Interfaz
+## FASE 13 - Funcionalidades Avanzadas
 
-- [x] Overlay simple
-- [x] Panel de recomendaciones
-- [ ] Historial visual
+- [ ] Integrar API de PokemonDB para datos actualizados
+- [ ] Implementar análisis de equipos enemigos en tiempo real
+- [ ] Crear modo práctica para entrenar sin riesgo
+- [ ] Añadir alertas configurables para situaciones críticas
 
-## FASE 6 - Persistencia
+## FASE 14 - Tests y Cobertura
 
-- [x] Guardar partidas
-- [ ] Exportar historial
-- [ ] Sistema de estadísticas
+- [ ] Aumentar cobertura de tests a 80%+
+- [ ] Añadir tests E2E para flujos principales
+- [ ] Implementar testing de rendimiento
+- [ ] Crear tests demutantes para validación
 
-## FASE 7 - Calidad
+## FASE 15 - Documentación y Mantenimiento
 
-- [x] Tests unitarios
-- [ ] Tests de integración
-- [ ] Documentación técnica
-- [ ] Guía de instalación
+- [ ] Generar documentación API con Sphinx
+- [ ] Crear guía de contribución
+- [ ] Añadir ejemplos de uso en README
+- [ ] Implementar changelog automático
 
-## FASE 8 - Futuro
+## FASE 16 - Escalabilidad
 
-- [ ] Integrar calculadora de daño
-- [ ] Analizar metagame
-- [ ] Analizar win conditions
-- [ ] Aprender de replays
-- [ ] Simulaciones de combate
+- [ ] Diseñar arquitectura para múltiples formatos de batalla
+- [ ] Implementar sistema de plugins para extensiones
+- [ ] Crear API REST para integraciones externas
+- [ ] Preparar infraestructura para cloud deployment

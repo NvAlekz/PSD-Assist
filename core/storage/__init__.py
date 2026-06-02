@@ -5,7 +5,7 @@ Sistema de persistencia para partidas
 
 import json
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
 from ..battle_state import BattleState
 
