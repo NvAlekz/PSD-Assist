@@ -11,40 +11,31 @@ const CONFIG = {
 };
 
 // ==================== SELECTORES DEL DOM ====================
-// Nota: Pokemon Showdown cambia frecuentemente su estructura de DOM
-// Estos selectores pueden necesitar actualización
+// Pokemon Showdown usa iframes y JavaScript dinámico para renderizar batallas
+// NO usa selectores CSS tradicionales - la UI se genera con JS
 
 const SELECTORS = {
-  // Area de batalla principal
-  battleArea: [
+  // Iframe de batalla (contenedor principal)
+  battleIframe: [
+    'iframe[name="battle"]',
+    'iframe[title*="battle"]',
+    '#battle iframe',
+    '.battle-iframe'
+  ],
+  
+  // Buscar cualquier cosa relacionada con la batalla
+  battleContainer: [
     '.battle',
-    '.battle-wrapper',
-    '#battle-wrapper',
-    '.left',
-    '.right'
+    '#battle',
+    '[id*="battle"]'
   ],
   
-  // Pokemon activo del jugador
-  myActive: [
-    '.left .pokemon',
-    '.left .pokemonicon',
-    '#myswitching .pokemon',
-    '.switchmenu .pokemon'
-  ],
-  
-  // Pokemon activo del enemigo
-  enemyActive: [
-    '.right .pokemon',
-    '.right .pokemonicon',
-    '#_switchmenu .pokemon',
-    '.switchmenu .pokemon'
-  ],
-  
-  // HP
-  hpBar: ['.hpbar', '.hp-text'],
-  
-  // Nombre del pokemon
-  pokemonName: ['.name', '.pokename', '.subtle']
+  // Cuando el menu de team preview está activo
+  teamPreview: [
+    '.teampreview',
+    '#teampreview',
+    '.chooseteam'
+  ]
 };
 
 // ==================== UTILIDADES ====================
@@ -53,6 +44,127 @@ function log(message, data = null) {
   if (CONFIG.debug) {
     console.log(`%c[PSD] ${message}`, 'color: #3498db; font-weight: bold;', data || '');
   }
+}
+
+// ==================== METODOS DE DETECCIÓN ====================
+
+// Método 1: Buscar en variables globales de PS
+function getBattleStateFromPSGlobals() {
+  // PS almacena el estado en window.BattleHistory o similar
+  // Esto es lo que usan otras extensiones como Showdex
+  
+  try {
+    // Intentar acceder al estado de PS si está disponible
+    if (window.Battle && window.Battle.lastBattle) {
+      const battle = window.Battle.lastBattle;
+      return {
+        myPokemon: battle.p1?.active?.[0] ? parseBattlePokemon(battle.p1.active[0]) : null,
+        enemyPokemon: battle.p2?.active?.[0] ? parseBattlePokemon(battle.p2.active[0]) : null,
+        hasBattle: true
+      };
+    }
+  } catch (e) {
+    log('No se pudo acceder a globals de PS');
+  }
+  return null;
+}
+
+function parseBattlePokemon(poke) {
+  if (!poke) return null;
+  return {
+    name: poke.name || poke.species || 'Unknown',
+    species: poke.species || 'Unknown',
+    hp: poke.hp || 100,
+    maxHp: poke.maxhp || 100,
+    hpPercent: poke.hp ? Math.round((poke.hp / poke.maxhp) * 100) : 100,
+    status: poke.status || null,
+    fainted: poke.fainted || false
+  };
+}
+
+// Método 2: Buscar en el DOM (menos fiable pero puede funcionar)
+function getBattleStateFromDOM() {
+  // Verificar si hay iframe de batalla
+  const iframe = document.querySelector('iframe[name="battle"], iframe[title*="battle"]');
+  
+  if (iframe && iframe.contentDocument) {
+    // El iframe tiene su propio documento
+    const doc = iframe.contentDocument;
+    
+    // Buscar elementos en el iframe
+    const battleArea = doc.querySelector('.battle, .left, .right');
+    if (battleArea) {
+      log('Batalla encontrada en iframe');
+      return {
+        myPokemon: parsePokemonFromDOM(doc, '.left'),
+        enemyPokemon: parsePokemonFromDOM(doc, '.right'),
+        hasBattle: true
+      };
+    }
+  }
+  
+  // Buscar en el documento principal
+  const mainBattle = document.querySelector('.battle');
+  if (mainBattle) {
+    return {
+      myPokemon: parsePokemonFromDOM(document, '.left'),
+      enemyPokemon: parsePokemonFromDOM(document, '.right'),
+      hasBattle: true
+    };
+  }
+  
+  return null;
+}
+
+function parsePokemonFromDOM(doc, side) {
+  // Esta función intenta parsear Pokemon del DOM
+  // Los selectores pueden variar según la versión de PS
+  const container = doc.querySelector(side);
+  if (!container) return null;
+  
+  // Intentar múltiples formas de encontrar el nombre
+  let name = '';
+  const nameEl = container.querySelector('.name, .pokename, [data-name]');
+  if (nameEl) {
+    name = nameEl.textContent.trim();
+  }
+  
+  // HP bar
+  let hp = 100, maxHp = 100;
+  const hpBar = container.querySelector('.hpbar, .hp-text');
+  if (hpBar) {
+    const hpText = hpBar.textContent || hpBar.dataset?.hp || '';
+    const match = hpText.match(/(\d+)\s*\/?\s*(\d*)/);
+    if (match) {
+      hp = parseInt(match[1]) || 0;
+      maxHp = parseInt(match[2]) || hp;
+    }
+  }
+  
+  if (!name) return null;
+  
+  return {
+    name: name.replace(/^(Mega|Alola|Galar|Dynamax|Prime|Z)-?\s*/i, ''),
+    species: name.split(' ')[0],
+    hp,
+    maxHp,
+    hpPercent: maxHp > 0 ? Math.round((hp / maxHp) * 100) : 100,
+    status: null,
+    fainted: hp === 0
+  };
+}
+
+// Método 3: Buscar en mensajes del cliente (si PS expone los mensajes)
+function getBattleStateFromClientMessages() {
+  // Algunos datos pueden estar en variables globales del cliente
+  // Esto es especulativo pero puede funcionar
+  try {
+    // Intentar acceder a clientVars o similar
+    if (window.clientVars && window.clientVars.user) {
+      log('clientVars detectado');
+    }
+  } catch (e) {}
+  return null;
 }
 
 function createOverlay() {
@@ -436,75 +548,123 @@ function scanBattle() {
     detected: false
   };
   
-  // Verificar si hay una batalla activa - buscar cualquier elemento relacionado con PS
-  const battleArea = document.querySelector('.battle, .battle-wrapper, #battle-wrapper, .left, .right, .pokemon');
-  
-  if (!battleArea) {
-    log('No se detectó área de batalla');
-    // Debug: mostrar qué elementos existen
-    log('Elementos encontrados:', {
-      battle: document.querySelectorAll('.battle').length,
-      left: document.querySelectorAll('.left').length,
-      right: document.querySelectorAll('.right').length,
-      pokemon: document.querySelectorAll('.pokemon').length,
-      hpbar: document.querySelectorAll('.hpbar').length,
-      name: document.querySelectorAll('.name').length
-    });
-    return state;
+  // MÉTODO 1: Intentar acceder al iframe de batalla
+  try {
+    const iframe = document.querySelector('iframe[name="battle"]');
+    if (iframe && iframe.contentDocument) {
+      const iframeDoc = iframe.contentDocument;
+      const battleInIframe = iframeDoc.querySelector('.battle');
+      if (battleInIframe) {
+        log('Batalla detectada en iframe');
+        
+        // Intentar extraer datos del iframe
+        const leftSide = iframeDoc.querySelector('.left');
+        const rightSide = iframeDoc.querySelector('.right');
+        
+        if (leftSide) {
+          state.myPokemon = extractPokemonFromSide(leftSide);
+        }
+        if (rightSide) {
+          state.enemyPokemon = extractPokemonFromSide(rightSide);
+        }
+        
+        if (state.myPokemon || state.enemyPokemon) {
+          state.hasBattle = true;
+          state.detected = true;
+          return state;
+        }
+      }
+    }
+  } catch (e) {
+    log('Error accediendo al iframe:', e.message);
   }
   
-  state.hasBattle = true;
-  log('Área de batalla detectada');
-  
-  // Intentar detectar Pokemon activo del jugador
-  const myPokemonEl = findElement(SELECTORS.myActive);
-  if (myPokemonEl) {
-    state.myPokemon = parsePokemonFromElement(myPokemonEl);
-    log('Pokemon mío detectado:', state.myPokemon);
-  } else {
-    log('No se encontró Pokemon mío con los selectores:', SELECTORS.myActive);
+  // MÉTODO 2: Buscar en el documento principal
+  const mainBattle = document.querySelector('.battle');
+  if (mainBattle) {
+    log('Batalla detectada en documento principal');
+    
+    const leftSide = document.querySelector('.left');
+    const rightSide = document.querySelector('.right');
+    
+    if (leftSide) {
+      state.myPokemon = extractPokemonFromSide(leftSide);
+    }
+    if (rightSide) {
+      state.enemyPokemon = extractPokemonFromSide(rightSide);
+    }
+    
+    if (state.myPokemon || state.enemyPokemon) {
+      state.hasBattle = true;
+      state.detected = true;
+      return state;
+    }
   }
   
-  // Intentar detectar Pokemon activo del enemigo
-  const enemyPokemonEl = findElement(SELECTORS.enemyActive);
-  if (enemyPokemonEl) {
-    state.enemyPokemon = parsePokemonFromElement(enemyPokemonEl);
-    log('Pokemon enemigo detectado:', state.enemyPokemon);
-  } else {
-    log('No se encontró Pokemon enemigo con los selectores:', SELECTORS.enemyActive);
+  // MÉTODO 3: Buscar si hay URL de batalla en el iframe
+  const battleIframes = document.querySelectorAll('iframe');
+  for (const iframe of battleIframes) {
+    if (iframe.src && iframe.src.includes('battle')) {
+      log('Iframe de batalla encontrado:', iframe.src);
+      state.hasBattle = true;
+    }
   }
   
-  state.detected = !!(state.myPokemon || state.enemyPokemon);
+  // MÉTODO 4: Verificar si hay elementos de team preview (batalla iniciada)
+  const teamPreview = document.querySelector('.teampreview, .chooseteam');
+  if (teamPreview) {
+    log('Team preview detectado - batalla iniciada');
+    state.hasBattle = true;
+    state.detected = true;
+  }
+  
+  // Debug: mostrar conteo de elementos
+  log('Elementos encontrados:', {
+    battle: document.querySelectorAll('.battle').length,
+    left: document.querySelectorAll('.left').length,
+    right: document.querySelectorAll('.right').length,
+    iframeBattle: document.querySelectorAll('iframe[name="battle"]').length,
+    iframesTotal: document.querySelectorAll('iframe').length
+  });
   
   return state;
 }
 
-function findElement(selectors) {
-  for (const selector of selectors) {
-    const el = document.querySelector(selector);
-    if (el) return el;
-  }
-  return null;
-}
-
-function parsePokemonFromElement(element) {
-  if (!element) return null;
+function extractPokemonFromSide(side) {
+  if (!side) return null;
   
-  // Extraer nombre
+  // Buscar nombre del pokemon
   let name = '';
-  const nameEl = element.querySelector('.name, .pokename, [class*="name"]');
+  const nameEl = side.querySelector('.name, .pokename');
   if (nameEl) {
     name = nameEl.textContent.trim();
   }
   
-  // Limpiar nombre (remover badges como "Mega ", "Alola ", etc.)
+  // Si no hay nombre, buscar en otros lugares
+  if (!name) {
+    const allElements = side.querySelectorAll('*');
+    for (const el of allElements) {
+      // Buscar texto que parezca nombre de pokemon
+      const text = el.textContent.trim();
+      if (text && text.length > 2 && text.length < 20 && !text.includes(' ')) {
+        // Podría ser un nombre de pokemon
+        name = text;
+        break;
+      }
+    }
+  }
+  
+  if (!name) return null;
+  
+  // Limpiar nombre
   name = name.replace(/^(Mega|Alola|Galar|Dynamax|Prime|Z)-?\s*/i, '');
   
-  // Extraer HP
+  // Buscar HP
   let hp = 100, maxHp = 100;
-  const hpBar = element.querySelector('.hpbar, .hp-text, [class*="hpbar"]');
+  const hpBar = side.querySelector('.hpbar');
   if (hpBar) {
-    const hpText = hpBar.textContent || hpBar.dataset?.hp || '';
+    // El HP puede estar en dataset o en texto
+    const hpText = hpBar.dataset?.hp || hpBar.textContent || '';
     const match = hpText.match(/(\d+)\s*\/?\s*(\d*)/);
     if (match) {
       hp = parseInt(match[1]) || 0;
@@ -512,35 +672,18 @@ function parsePokemonFromElement(element) {
     }
   }
   
-  // Calcular porcentaje
-  const hpPercent = maxHp > 0 ? Math.round((hp / maxHp) * 100) : 100;
-  
-  // Detectar estado
-  let status = null;
-  const statusEl = element.querySelector('.status, [class*="status"]');
-  if (statusEl && !statusEl.classList.contains('status-container')) {
-    const statusText = statusEl.textContent.toLowerCase();
-    if (statusText.includes('brn') || statusText.includes('burn')) status = 'burned';
-    else if (statusText.includes('psn') || statusText.includes('poison')) status = 'poisoned';
-    else if (statusText.includes('tox') || statusText.includes('toxic')) status = 'toxic';
-    else if (statusText.includes('slp') || statusText.includes('sleep')) status = 'sleep';
-    else if (statusText.includes('frz') || statusText.includes('freeze')) status = 'frozen';
-    else if (statusText.includes('par') || statusText.includes('paral')) status = 'paralyzed';
-  }
-  
-  // Verificar si está debilitado
-  const fainted = hp === 0 || element.classList.contains('fainted');
-  
   return {
     name,
     species: name.split(' ')[0],
     hp,
     maxHp,
-    hpPercent,
-    status,
-    fainted
+    hpPercent: maxHp > 0 ? Math.round((hp / maxHp) * 100) : 100,
+    status: null,
+    fainted: hp === 0
   };
 }
+
+
 
 // ==================== INICIALIZACIÓN ====================
 
