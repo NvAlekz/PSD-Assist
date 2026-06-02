@@ -15,29 +15,36 @@ const CONFIG = {
 // Estos selectores pueden necesitar actualización
 
 const SELECTORS = {
-  // Pokemon activo - intenta múltiples selectores
+  // Area de batalla principal
+  battleArea: [
+    '.battle',
+    '.battle-wrapper',
+    '#battle-wrapper',
+    '.left',
+    '.right'
+  ],
+  
+  // Pokemon activo del jugador
   myActive: [
-    '.battle .left .pokemon',
-    '.battle-arena .left .trainer .sprite',
-    '.battle .pokemon-left-0',
-    '.lchat .pokemon',
+    '.left .pokemon',
+    '.left .pokemonicon',
+    '#myswitching .pokemon',
+    '.switchmenu .pokemon'
   ],
+  
+  // Pokemon activo del enemigo
   enemyActive: [
-    '.battle .right .pokemon',
-    '.battle-arena .right .trainer .sprite',
-    '.battle .pokemon-right-0',
-    '.rchat .pokemon',
+    '.right .pokemon',
+    '.right .pokemonicon',
+    '#_switchmenu .pokemon',
+    '.switchmenu .pokemon'
   ],
-  // HP bar
-  hpBar: '.hpbar, .hp-text, .HPText',
+  
+  // HP
+  hpBar: ['.hpbar', '.hp-text'],
+  
   // Nombre del pokemon
-  pokemonName: '.name, .pokename, .PokemonName',
-  // Menu de movimientos
-  moves: '.movemenu .move, #movemenu .move',
-  // Menu de switches
-  switches: '.switchmenu .pokemon, #switchmenu .pokemon',
-  // Indicador de batalla activa
-  battleActive: '.battle, .battle-arena, #battle-bg',
+  pokemonName: ['.name', '.pokename', '.subtle']
 };
 
 // ==================== UTILIDADES ====================
@@ -429,21 +436,33 @@ function scanBattle() {
     detected: false
   };
   
-  // Verificar si hay una batalla activa
-  const battleArea = document.querySelector('.battle, .battle-arena, #battle, .left, .right');
+  // Verificar si hay una batalla activa - buscar cualquier elemento relacionado con PS
+  const battleArea = document.querySelector('.battle, .battle-wrapper, #battle-wrapper, .left, .right, .pokemon');
   
   if (!battleArea) {
     log('No se detectó área de batalla');
+    // Debug: mostrar qué elementos existen
+    log('Elementos encontrados:', {
+      battle: document.querySelectorAll('.battle').length,
+      left: document.querySelectorAll('.left').length,
+      right: document.querySelectorAll('.right').length,
+      pokemon: document.querySelectorAll('.pokemon').length,
+      hpbar: document.querySelectorAll('.hpbar').length,
+      name: document.querySelectorAll('.name').length
+    });
     return state;
   }
   
   state.hasBattle = true;
+  log('Área de batalla detectada');
   
   // Intentar detectar Pokemon activo del jugador
   const myPokemonEl = findElement(SELECTORS.myActive);
   if (myPokemonEl) {
     state.myPokemon = parsePokemonFromElement(myPokemonEl);
     log('Pokemon mío detectado:', state.myPokemon);
+  } else {
+    log('No se encontró Pokemon mío con los selectores:', SELECTORS.myActive);
   }
   
   // Intentar detectar Pokemon activo del enemigo
@@ -451,16 +470,8 @@ function scanBattle() {
   if (enemyPokemonEl) {
     state.enemyPokemon = parsePokemonFromElement(enemyPokemonEl);
     log('Pokemon enemigo detectado:', state.enemyPokemon);
-  }
-  
-  // Contar turnos
-  const turnElement = document.querySelector('.turn-count, #turn-count, .battle-turn');
-  if (turnElement) {
-    state.turn = parseInt(turnElement.textContent) || 0;
   } else {
-    // Escanear el log de batalla para contar turnos
-    const messages = document.querySelectorAll('.battle-log .message');
-    state.turn = Math.ceil(messages.length / 2);
+    log('No se encontró Pokemon enemigo con los selectores:', SELECTORS.enemyActive);
   }
   
   state.detected = !!(state.myPokemon || state.enemyPokemon);
