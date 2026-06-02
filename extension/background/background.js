@@ -17,16 +17,23 @@ class BackgroundService {
   }
 
   handleMessage(message, sender, sendResponse) {
+    // Verificar que sender.tab existe
+    const tabId = sender?.tab?.id;
+    
     switch (message.type) {
       case 'BATTLE_STATE_UPDATE':
-        this.updateBattleState(sender.tab.id, message.data);
+        if (tabId) {
+          this.updateBattleState(tabId, message.data);
+        }
         sendResponse({ success: true });
         break;
       case 'GET_BATTLE_STATE':
-        sendResponse(this.getBattleState(sender.tab.id));
+        sendResponse(tabId ? this.getBattleState(tabId) : null);
         break;
       case 'CLEAR_BATTLE':
-        this.clearBattle(sender.tab.id);
+        if (tabId) {
+          this.clearBattle(tabId);
+        }
         sendResponse({ success: true });
         break;
       default:
