@@ -8,7 +8,8 @@ let overlayState = 'unknown';
 document.addEventListener('DOMContentLoaded', () => {
   loadState();
   setupListeners();
-  checkOverlayState();
+  // Delay check to ensure content script is loaded
+  setTimeout(checkOverlayState, 500);
 });
 
 function loadState() {
@@ -23,73 +24,106 @@ function loadState() {
 function updateBattleStatus() {
   chrome.runtime.sendMessage({ type: 'GET_BATTLE_STATE' }, (state) => {
     const statusEl = document.getElementById('status');
-    if (state && state.myPokemon) {
-      statusEl.className = 'status active';
-      statusEl.textContent = '⚔️ Batalla activa';
-    } else {
-      statusEl.className = 'status inactive';
-      statusEl.textContent = 'Sin batalla activa';
+    if (statusEl) {
+      if (state && state.myPokemon) {
+        statusEl.className = 'status active';
+        statusEl.textContent = '⚔️ Batalla activa';
+      } else {
+        statusEl.className = 'status inactive';
+        statusEl.textContent = 'Sin batalla activa';
+      }
     }
   });
 }
 
 function updateBattleCount() {
-  document.getElementById('battle-count').textContent = `Batallas: ${battleCount}`;
+  const el = document.getElementById('battle-count');
+  if (el) el.textContent = `Batallas: ${battleCount}`;
 }
 
 function checkOverlayState() {
-  // Query active tab and check overlay state
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0]) {
+    if (!tabs || !tabs[0]) {
+      updateToggleStatus('Estado: Sin pestaña activa');
+      return;
+    }
+    
+    try {
       chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_OVERLAY_STATE' }, (response) => {
-        const statusEl = document.getElementById('toggle-status');
-        if (response && response.visible) {
-          statusEl.textContent = 'Estado: Visible ✓';
-          overlayState = 'visible';
+        if (chrome.runtime.lastError) {
+          updateToggleStatus('Estado: Extensión no detectada');
+          console.log('[PSD] Runtime error:', chrome.runtime.lastError.message);
+        } else if (response && response.visible !== undefined) {
+          if (response.visible) {
+            updateToggleStatus('Estado: Visible ✓');
+            overlayState = 'visible';
+          } else {
+            updateToggleStatus('Estado: Oculto');
+            overlayState = 'hidden';
+          }
         } else {
-          statusEl.textContent = 'Estado: Oculto';
-          overlayState = 'hidden';
+          updateToggleStatus('Estado: Respuesta inválida');
         }
-      }).catch(() => {
-        document.getElementById('toggle-status').textContent = 'Estado: No disponible';
       });
+    } catch (e) {
+      updateToggleStatus('Estado: Error de conexión');
+      console.error('[PSD] Error:', e);
     }
   });
 }
 
 function toggleOverlayState() {
-  // Send message directly to content script via tabs API
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0]) {
+    if (!tabs || !tabs[0]) {
+      updateToggleStatus('Estado: Sin pestaña activa');
+      return;
+    }
+    
+    try {
       chrome.tabs.sendMessage(tabs[0].id, { type: 'TOGGLE_OVERLAY' }, (response) => {
-        const statusEl = document.getElementById('toggle-status');
-        if (response && response.success) {
-          // Toggle the text based on current state
+        if (chrome.runtime.lastError) {
+          updateToggleStatus('Error: ' + chrome.runtime.lastError.message);
+          console.log('[PSD] Runtime error:', chrome.runtime.lastError.message);
+        } else if (response && response.success) {
+          // Toggle state
           if (overlayState === 'visible') {
-            statusEl.textContent = 'Estado: Oculto';
+            updateToggleStatus('Estado: Oculto');
             overlayState = 'hidden';
           } else {
-            statusEl.textContent = 'Estado: Visible ✓';
+            updateToggleStatus('Estado: Visible ✓');
             overlayState = 'visible';
           }
+        } else {
+          updateToggleStatus('Estado: Sin respuesta');
         }
-      }).catch((error) => {
-        console.error('[PSD] Error toggling overlay:', error);
-        document.getElementById('toggle-status').textContent = 'Error: Extensión no detectada';
       });
+    } catch (e) {
+      updateToggleStatus('Error: ' + e.message);
+      console.error('[PSD] Error toggling:', e);
     }
   });
 }
 
+function updateToggleStatus(text) {
+  const el = document.getElementById('toggle-status');
+  if (el) el.textContent = text;
+}
+
 function setupListeners() {
-  document.getElementById('toggleOverlay').addEventListener('click', toggleOverlayState);
+  const toggleBtn = document.getElementById('toggleOverlay');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', toggleOverlayState);
+  }
   
-  document.getElementById('clearData').addEventListener('click', () => {
-    chrome.storage.local.clear();
-    battleCount = 0;
-    updateBattleCount();
-    updateBattleStatus();
-  });
+  const clearBtn = document.getElementById('clearData');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      chrome.storage.local.clear();
+      battleCount = 0;
+      updateBattleCount();
+      updateBattleStatus();
+    });
+  }
   
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'STATE_UPDATED') {
