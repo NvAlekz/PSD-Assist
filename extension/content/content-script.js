@@ -114,6 +114,199 @@
 
   // ==================== SCAN DE BATALLA ====================
   function scanBattle() {
+    return scanBattleImproved();
+  }
+
+  // ==================== EXTRAER POKEMON ====================
+  function extractPokemon(element) {
+    if (!element) return null;
+
+    log('Extrayendo Pokemon de elemento...');
+
+    // Intentar múltiples selectores para el nombre
+    let name = '';
+    
+    // Selectores de nombre (ordenados por probabilidad)
+    const nameSelectors = [
+      '.nickname',           // Pokemon nickname
+      '.pokename',           // Pokemon name
+      '.name',               // Generic name
+      '.pokemon-name',       // Pokemon name class
+      '.trainer-name',       // Trainer name
+      '[data-name]',         // Data attribute
+      '[data-nickname]',     // Nickname data
+      '.foename',            // Foe name
+      '.username',           // Username (enemy)
+    ];
+    
+    for (let i = 0; i < nameSelectors.length; i++) {
+      const selector = nameSelectors[i];
+      const el = element.querySelector(selector);
+      if (el && el.textContent) {
+        const text = el.textContent.trim();
+        log('  Selector ' + selector + ' encontró:', text);
+        if (text && text.length > 0 && text.length < 30) {
+          name = text;
+          break;
+        }
+      }
+    }
+
+    // Si no hay nombre, buscar en el sprite
+    if (!name) {
+      const spriteSelectors = ['.sprite', '.pokemonicon', '.pokemonsprite', '.pokemon-sprite', 'img'];
+      for (let i = 0; i < spriteSelectors.length; i++) {
+        const sprite = element.querySelector(spriteSelectors[i]);
+        if (sprite) {
+          name = sprite.getAttribute('title') || sprite.getAttribute('alt') || '';
+          log('  Sprite ' + spriteSelectors[i] + ' title/alt:', name);
+          if (name) break;
+        }
+      }
+    }
+
+    // Limpiar nombre
+    name = name.replace(/^(Mega|Alola|Galar|Dynamax|Prime|Z)-?\s*/i, '');
+    name = name.split(' ')[0]; // Solo el nombre base
+    name = name.split('-')[0]; // Remover formas como Hisui
+    
+    if (!name || name.length === 0) {
+      log('  ✗ No se pudo extraer nombre');
+      return null;
+    }
+
+    log('  Nombre extraído:', name);
+
+    // HP - múltiples formas
+    let hp = 100, maxHp = 100;
+    
+    // Intentar diferentes selectores de HP
+    const hpSelectors = [
+      '.statbar-lifeline',
+      '.hpbar',
+      '.hp-text',
+      '.hptext',
+      '.hpnumber',
+      '[class*="hp-bar"]',
+      '[class*="hpbar"]',
+      '[class*="lifeline"]'
+    ];
+    
+    for (let i = 0; i < hpSelectors.length; i++) {
+      const hpEl = element.querySelector(hpSelectors[i]);
+      if (hpEl) {
+        const title = hpEl.getAttribute('title') || '';
+        const text = hpEl.textContent || '';
+        const dataHp = hpEl.getAttribute('data-hp') || '';
+        const hpSource = title || text || dataHp;
+        log('  HP selector ' + hpSelectors[i] + ':', hpSource);
+        
+        if (hpSource) {
+          // Formato: "100/100" o "100 / 100"
+          const match = hpSource.match(/(\d+)\s*\/?\s*(\d*)/);
+          if (match) {
+            hp = parseInt(match[1]) || 0;
+            maxHp = parseInt(match[2]) || hp;
+            break;
+          }
+        }
+      }
+    }
+
+    // Status
+    let status = null;
+    const statusEl = element.querySelector('.status, [class*="status"]');
+    if (statusEl) {
+      const statusText = statusEl.textContent || '';
+      log('  Status:', statusText);
+      if (statusText.includes('brn') || statusText.includes('burn')) status = 'burned';
+      else if (statusText.includes('psn')) status = 'poisoned';
+      else if (statusText.includes('tox')) status = 'toxic';
+      else if (statusText.includes('slp')) status = 'sleep';
+      else if (statusText.includes('frz')) status = 'frozen';
+      else if (statusText.includes('par')) status = 'paralyzed';
+    }
+
+    return {
+      name: name,
+      hp: hp,
+      maxHp: maxHp,
+      hpPercent: maxHp > 0 ? Math.round((hp / maxHp) * 100) : 100,
+      status: status,
+      fainted: hp === 0
+    };
+  }
+
+  // ==================== EXTRAER POKEMON MEJORADO ====================
+  function extractAllPokemonData() {
+    log('=== BUSCANDO TODOS LOS POKEMON ===');
+    
+    const results = {
+      myPokemon: null,
+      enemyPokemon: null,
+      allPokemonFound: []
+    };
+    
+    // Buscar por múltiples métodos
+    // Método 1: Buscar por lado (.left, .right, .p1, .p2)
+    const sideSelectors = ['.left', '.right', '.side-left', '.side-right', '.p1', '.p2', '.trainer-0', '.trainer-1'];
+    for (let i = 0; i < sideSelectors.length; i++) {
+      const selector = sideSelectors[i];
+      const elements = document.querySelectorAll(selector);
+      log('  Selector ' + selector + ': ' + elements.length + ' elementos');
+      
+      elements.forEach((el, idx) => {
+        const nameEl = el.querySelector('.name, .pokename, .nickname, .username');
+        if (nameEl) {
+          const name = nameEl.textContent.trim();
+          log('    ' + selector + '[' + idx + '] nombre:', name);
+          results.allPokemonFound.push({
+            name: name,
+            selector: selector,
+            element: el
+          });
+        }
+      });
+    }
+    
+    // Método 2: Buscar statbar (contenedor de HP y nombre)
+    const statbarElements = document.querySelectorAll('[class*="statbar"], [class*="lifeline"]');
+    log('  statbar elements:', statbarElements.length);
+    
+    statbarElements.forEach((el, idx) => {
+      const nameEl = el.querySelector('.name, .pokename, .nickname');
+      const hpEl = el.querySelector('[class*="hp"]');
+      if (nameEl) {
+        const name = nameEl.textContent.trim();
+        log('    statbar[' + idx + '] nombre:', name, 'HP:', hpEl ? hpEl.textContent : 'no hp');
+      }
+    });
+    
+    // Método 3: Buscar todos los elementos con 'pokemon' en clase
+    const pokemonElements = document.querySelectorAll('[class*="pokemon"]');
+    log('  pokemon class elements:', pokemonElements.length);
+    
+    pokemonElements.forEach((el, idx) => {
+      const nameEl = el.querySelector('.name, .pokename, .nickname');
+      if (nameEl) {
+        const name = nameEl.textContent.trim();
+        log('    pokemon[' + idx + '] name:', name, 'class:', el.className);
+      }
+    });
+    
+    // Método 4: Buscar por estructura de statrow
+    const statrowElements = document.querySelectorAll('.statrow, [class*="statrow"]');
+    log('  statrow elements:', statrowElements.length);
+    
+    // Determinar aliado vs enemigo (heurística)
+    // Usually: .left or .p1 = player, .right or .p2 = enemy
+    // But we can also check position in DOM or class names
+    
+    return results;
+  }
+
+  // ==================== SCAN DE BATALLA MEJORADO ====================
+  function scanBattleImproved() {
     scanCount++;
     const urlInfo = analyzeURL();
     const domInfo = analyzeDOM();
@@ -129,169 +322,160 @@
       domInfo: domInfo
     };
 
-    // Caso 1: Estamos en una sala de batalla (URL con /battle-)
+    log('=== SCAN #' + scanCount + ' ===');
+    log('URL:', window.location.href);
+
+    // Si estamos en un frame de batalla
     if (urlInfo.isBattleRoom) {
-      log('=== MODO BATALLA: URL contiene /battle- ===');
+      log('=== MODO BATALLA (URL) ===');
       
-      // Esperar que el DOM de batalla se cargue
+      // Buscar el contenedor de batalla
       const battle = document.querySelector('.battle');
       
       if (!battle) {
-        log('⚠️ No se encontró .battle - esperando que cargue');
-        // Posiblemente aún se está cargando
-        // Verificar si hay otros indicadores
-        const bodyHTML = document.body ? document.body.innerHTML.substring(0, 500) : 'sin body';
-        log('Primeros 500 chars del body:', bodyHTML);
+        log('⚠️ No se encontró .battle');
+        // Intentar otros contenedores
+        const alternatives = ['#battle', '.battle-arena', '.battle-wrapper', '[id*="battle"]'];
+        for (let i = 0; i < alternatives.length; i++) {
+          const alt = document.querySelector(alternatives[i]);
+          if (alt) {
+            log('✓ Encontré alternativa: ' + alternatives[i]);
+            return scanBattleInElement(alt, state);
+          }
+        }
         return state;
       }
       
-      log('✓ .battle encontrado!');
-      state.hasBattle = true;
-      
-      // Buscar lados de la batalla
-      const leftSide = battle.querySelector('.left');
-      const rightSide = battle.querySelector('.right');
-      
-      if (leftSide) {
-        log('✓ .left encontrado');
-        state.myPokemon = extractPokemon(leftSide);
-        log('Pokemon mío:', state.myPokemon);
-      } else {
-        log('✗ .left no encontrado');
-      }
-      
-      if (rightSide) {
-        log('✓ .right encontrado');
-        state.enemyPokemon = extractPokemon(rightSide);
-        log('Pokemon enemigo:', state.enemyPokemon);
-      } else {
-        log('✗ .right no encontrado');
-      }
-      
-      // Buscar turno
-      const turnEl = battle.querySelector('.turn-count, [class*="turn"]');
-      if (turnEl) {
-        state.turn = parseInt(turnEl.textContent) || 0;
-        log('Turno:', state.turn);
-      }
-      
-      state.detected = !!(state.myPokemon || state.enemyPokemon);
-      log('¿Detectado?:', state.detected);
-      
-      return state;
+      return scanBattleInElement(battle, state);
     }
     
-    // Caso 2: Estamos en una sala de chat (room view)
-    if (urlInfo.isRoomView) {
-      log('=== MODO SALA: Detectado room view ===');
-      
-      const room = document.querySelector('.room');
-      if (room) {
-        log('✓ .room encontrado');
-        
-        // Buscar si hay un iframe de batalla dentro
-        const iframes = room.querySelectorAll('iframe');
-        log('Iframes dentro de .room:', iframes.length);
-        
-        for (let i = 0; i < iframes.length; i++) {
-          log('  Iframe ' + i + ' src:', iframes[i].src);
-          if (iframes[i].src && iframes[i].src.includes('battle-')) {
-            log('✓ Iframe de batalla encontrado!');
-            state.hasBattle = true;
-            state.isInIframe = true;
-            state.iframeSrc = iframes[i].src;
-          }
-        }
-      }
-      
-      return state;
+    // Buscar battle en el DOM aunque no estemos en URL de batalla
+    log('=== BUSCANDO BATALLA EN DOM ===');
+    
+    // Buscar directamente por la clase battle
+    const battleElements = document.querySelectorAll('.battle, [class*="battle-aren"]');
+    log('Elementos .battle:', battleElements.length);
+    
+    if (battleElements.length > 0) {
+      log('✓ Encontré elementos .battle!');
+      return scanBattleInElement(battleElements[0], state);
     }
     
-    // Caso 3: Estamos en la página principal
-    log('=== MODO PRINCIPAL: Página de inicio ===');
+    // Extraer todos los datos de Pokemon para debug
+    const pokemonData = extractAllPokemonData();
+    log('Pokemon encontrados:', pokemonData.allPokemonFound);
     
-    // Buscar cualquier iframe
-    const iframes = document.querySelectorAll('iframe');
-    log('Total iframes en página:', iframes.length);
-    
-    for (let i = 0; i < iframes.length; i++) {
-      const src = iframes[i].src || '(sin src)';
-      log('  Iframe ' + i + ':', src);
-      
-      if (src.includes('battle-')) {
-        log('✓ Iframe de batalla encontrado en página principal');
-        state.hasBattle = true;
-        state.isInIframe = true;
-        state.iframeSrc = src;
-      }
+    // Si encontramos pokemon data, intentar determinar aliado/enemigo
+    if (pokemonData.allPokemonFound.length > 0) {
+      // Asumir que los primeros son aliados y los últimos enemigos
+      // Esto es una heurística
+      log('Total pokemon encontrados:', pokemonData.allPokemonFound.length);
     }
     
     return state;
   }
-
-  // ==================== EXTRAER POKEMON ====================
-  function extractPokemon(element) {
-    if (!element) return null;
-
-    log('Extrayendo Pokemon de elemento...');
-
-    // Intentar múltiples selectores para el nombre
-    let name = '';
-    const selectors = ['.name', '.pokename', '[data-name]', '.pokemon-name', '.trainer-name'];
+  
+  function scanBattleInElement(element, state) {
+    if (!element) return state;
     
-    for (let i = 0; i < selectors.length; i++) {
-      const el = element.querySelector(selectors[i]);
-      if (el && el.textContent) {
-        name = el.textContent.trim();
-        log('  Selector ' + selectors[i] + ' encontró:', name);
-        if (name) break;
+    log('Escaneando elemento:', element.className);
+    state.hasBattle = true;
+    
+    // Buscar pokemon activos usando múltiples métodos
+    
+    // Método 1: Buscar por estructura clásica .left .right
+    log('  Buscando .left y .right...');
+    const leftSide = element.querySelector('.left, .side-left, .p1, .trainer-0, [class*="side-left"]');
+    const rightSide = element.querySelector('.right, .side-right, .p2, .trainer-1, [class*="side-right"]');
+    
+    if (leftSide) {
+      log('  ✓ .left encontrado:', leftSide.className);
+      state.myPokemon = extractPokemon(leftSide);
+      if (state.myPokemon) {
+        log('  ✓ Pokemon mío extraído:', state.myPokemon.name, state.myPokemon.hpPercent + '%');
       }
     }
-
-    // Si no hay nombre, buscar en atributos del sprite
-    if (!name) {
-      const sprite = element.querySelector('.sprite, .pokemonicon, .pokémon-sprite, img');
-      if (sprite) {
-        name = sprite.getAttribute('title') || sprite.getAttribute('alt') || '';
-        log('  Sprite title/alt:', name);
+    
+    if (rightSide) {
+      log('  ✓ .right encontrado:', rightSide.className);
+      state.enemyPokemon = extractPokemon(rightSide);
+      if (state.enemyPokemon) {
+        log('  ✓ Pokemon enemigo extraído:', state.enemyPokemon.name, state.enemyPokemon.hpPercent + '%');
       }
     }
-
-    // Limpiar nombre
-    name = name.replace(/^(Mega|Alola|Galar|Dynamax|Prime|Z)-?\s*/i, '');
-    name = name.split(' ')[0]; // Solo el nombre base
     
-    if (!name) {
-      log('  ✗ No se pudo extraer nombre');
-      return null;
-    }
-
-    log('  Nombre extraído:', name);
-
-    // HP
-    let hp = 100, maxHp = 100;
-    const hpBar = element.querySelector('.hpbar, .hp-text, .hptext, [class*="hpbar"]');
-    if (hpBar) {
-      const title = hpBar.getAttribute('title') || '';
-      const text = hpBar.textContent || '';
-      const hpSource = title || text;
-      log('  HP source:', hpSource);
+    // Método 2: Buscar statbar
+    if (!state.myPokemon || !state.enemyPokemon) {
+      log('  Buscando statbars...');
+      const statbars = element.querySelectorAll('[class*="statbar"], .statrow');
+      log('  statbars encontrados:', statbars.length);
       
-      const match = hpSource.match(/(\d+)\s*\/?\s*(\d+)/);
-      if (match) {
-        hp = parseInt(match[1]) || 0;
-        maxHp = parseInt(match[2]) || hp;
-      }
+      statbars.forEach((bar, idx) => {
+        const nameEl = bar.querySelector('.name, .pokename, .nickname');
+        if (nameEl) {
+          const name = nameEl.textContent.trim();
+          log('    statbar[' + idx + ']:', name);
+          
+          // Determinar si es aliado o enemigo
+          // Heurística: los primeros 3-6 son aliados, los siguientes enemigos
+          if (!state.myPokemon && idx < 6) {
+            const pokemon = extractPokemon(bar);
+            if (pokemon) {
+              state.myPokemon = pokemon;
+              log('    → Asignado como MI pokemon');
+            }
+          } else if (!state.enemyPokemon && idx >= 6) {
+            const pokemon = extractPokemon(bar);
+            if (pokemon) {
+              state.enemyPokemon = pokemon;
+              log('    → Asignado como ENEMIGO');
+            }
+          }
+        }
+      });
     }
-
-    return {
-      name: name,
-      hp: hp,
-      maxHp: maxHp,
-      hpPercent: maxHp > 0 ? Math.round((hp / maxHp) * 100) : 100,
-      status: null,
-      fainted: hp === 0
-    };
+    
+    // Método 3: Buscar cualquier elemento con nombre de pokemon
+    if (!state.myPokemon) {
+      log('  Buscando pokemon por nombre (método 3)...');
+      const allPokemonElements = element.querySelectorAll('.name, .pokename, .nickname');
+      log('  Total elementos con nombre:', allPokemonElements.length);
+      
+      allPokemonElements.forEach((el, idx) => {
+        const name = el.textContent.trim();
+        if (name && name.length > 0 && name.length < 20) {
+          log('    [' + idx + ']:', name);
+          if (!state.myPokemon && idx < allPokemonElements.length / 2) {
+            const parent = el.closest('[class*="pokemon"], [class*="statbar"], .left, .side');
+            if (parent) {
+              state.myPokemon = extractPokemon(parent);
+              log('    → MI pokemon:', state.myPokemon ? state.myPokemon.name : 'null');
+            }
+          } else if (!state.enemyPokemon && idx >= allPokemonElements.length / 2) {
+            const parent = el.closest('[class*="pokemon"], [class*="statbar"], .right, .side');
+            if (parent) {
+              state.enemyPokemon = extractPokemon(parent);
+              log('    → ENEMIGO:', state.enemyPokemon ? state.enemyPokemon.name : 'null');
+            }
+          }
+        }
+      });
+    }
+    
+    // Buscar turno
+    const turnEl = element.querySelector('.turn-count, [class*="turn"]');
+    if (turnEl) {
+      state.turn = parseInt(turnEl.textContent) || 0;
+      log('  Turno:', state.turn);
+    }
+    
+    state.detected = !!(state.myPokemon || state.enemyPokemon);
+    log('=== RESULTADO ===');
+    log('  MI pokemon:', state.myPokemon);
+    log('  ENEMIGO:', state.enemyPokemon);
+    log('  Detectado:', state.detected);
+    
+    return state;
   }
 
   // ==================== OBSERVER PARA CAMBIOS ====================
