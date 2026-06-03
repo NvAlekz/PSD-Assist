@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pokemon Showdown Assistant",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Asistente inteligente para Pokemon Showdown",
   "permissions": ["activeTab", "storage", "scripting"],
   "background": {
