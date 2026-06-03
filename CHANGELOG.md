@@ -1,5 +1,40 @@
 # Changelog
 
+---
+
+## [1.0.1] - 2024-06-03
+
+### Fixed
+- **Error de sintaxis "Identifier 'overlay' has already been declared"**: 
+  - Renombrado `content.js` a `content-script.js` para forzar actualización de caché del navegador
+  - Todo el código está ahora envuelto en una IIFE para evitar conflictos de variables globales
+  - Eliminada variable `overlay` que causaba declaración duplicada
+  - Simplificada estructura del código (de ~650 líneas a ~220 líneas)
+
+### Refactored
+- Reescritura completa del content script
+- Uso de estilos inline simples en vez de CSS externo para el overlay básico
+- Implementación de función `init()` más limpia y modular
+
+### Notes
+- La extensión ahora usa `all_frames: true` en el manifest para ejecutarse también en iframes de batalla
+- Compatibilidad con Pokemon Showdown que usa iframes para renderizar batallas
+
+---
+
+## [1.0.0] - 2024-06-02
+
+### Added
+- Extensión básica de Pokemon Showdown Assistant
+- Overlay visual con información de batalla
+- Sistema de detección de Pokemon activo
+- Integración con popup para mostrar/ocultar overlay
+- Documentación técnica en `/docs`
+
+---
+
+## Registro Original (Archivo de Proyecto)
+
 Formato: `- [YYYY-MM-DD HH:MM] Tarea - Descripción`
 
 ---
@@ -78,22 +113,3 @@ Formato: `- [YYYY-MM-DD HH:MM] Tarea - Descripción`
 - Sistema de almacenamiento
 - Tests unitarios (22 tests)
 - Documentación técnica y de instalación
-
-### Estructura:
-```
-PSD-Assist/
-├── extension/       # Extensión navegador
-├── core/            # Lógica Python
-│   ├── battle_state/
-│   ├── damage_calculator.py
-│   ├── metagame_analyzer.py
-│   ├── win_condition_analyzer.py
-│   ├── replay_analyzer.py
-│   ├── battle_simulator.py
-│   ├── parser/
-│   ├── recommendation_engine/
-│   └── storage/
-├── tests/           # 91 tests
-├── scripts/         # Utilidades
-└── docs/            # Documentación
-```

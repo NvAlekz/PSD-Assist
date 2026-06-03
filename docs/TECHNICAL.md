@@ -10,7 +10,7 @@ El asistente analiza el estado de la batalla en Pokemon Showdown y recomienda ju
 
 #### 1. Extension (Navegador)
 
-**Content Script** (`extension/content/content.js`)
+**Content Script** (`extension/content/content-script.js`)
 - Lee el DOM directamente de Pokemon Showdown
 - Detecta: Pokemon activos, HP, estados, movimientos
 - Envía datos al background service worker
